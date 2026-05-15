@@ -1,0 +1,22 @@
+{
+    "project_name": "customer-churn-prediction",
+    "region": "eu-west-1",
+    "pipeline_name": "churn-prediction-pipeline",
+    "model_package_group_name": "churn-model-group",
+    "processing_instance_type": "ml.m5.xlarge",
+    "training_instance_type": "ml.m5.xlarge",
+    "inference_instance_type": "ml.m5.large",
+    "processing_instance_count": 1,
+    "training_instance_count": 1,
+    "inference_instance_count": 1,
+    "model_approval_status": "PendingManualApproval",
+    "hyperparameters": {
+        "objective": "binary:logistic",
+        "num_round": "100",
+        "max_depth": "5",
+        "eta": "0.2",
+        "subsample": "0.8",
+        "colsample_bytree": "0.8",
+        "eval_metric": "auc"
+    }
+}
