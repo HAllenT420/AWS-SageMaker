@@ -1,0 +1,67 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4a90d9', 'primaryTextColor': '#fff'}}}%%
+
+graph TD
+    subgraph Data Sources
+        AppDB[(App Database)]
+        Events[Event Stream<br/>Kinesis]
+        ThirdParty[3rd Party APIs]
+    end
+
+    subgraph Feature Engineering
+        FEPipeline[Feature Pipeline<br/>Spark / Flink]
+    end
+
+    subgraph Feature Store
+        Online[Online Store<br/>DynamoDB<br/>Low Latency]
+        Offline[Offline Store<br/>S3 Parquet<br/>Historical]
+    end
+
+    subgraph Training Loop
+        Trigger{Trigger:<br/>Schedule / Drift / New Features}
+        TrainPipeline[Training Pipeline]
+        Registry[Model Registry<br/>v1, v2, v3...]
+        Champion{New > Champion?}
+    end
+
+    subgraph Inference Service
+        Request[Prediction Request]
+        GetFeatures[Get Features<br/>from Online Store]
+        Model[Model Endpoint]
+        Response[Prediction Response]
+    end
+
+    subgraph Monitoring
+        FeatDrift[Feature Drift Monitor]
+        ModelDrift[Model Performance Monitor]
+        Alerts[Alerts & Triggers]
+    end
+
+    AppDB --> FEPipeline
+    Events --> FEPipeline
+    ThirdParty --> FEPipeline
+    FEPipeline --> Online
+    FEPipeline --> Offline
+
+    Offline -->|Point-in-time data| TrainPipeline
+    Trigger --> TrainPipeline
+    TrainPipeline --> Champion
+    Champion -->|Yes| Registry
+    Champion -->|No| Alerts
+
+    Request --> GetFeatures
+    GetFeatures -->|Features| Model
+    Online --> GetFeatures
+    Model --> Response
+    Registry -->|Deploy| Model
+
+    Response --> ModelDrift
+    Online --> FeatDrift
+    FeatDrift --> Alerts
+    ModelDrift --> Alerts
+    Alerts -->|Retrain| Trigger
+
+    style Online fill:#27ae60,color:#fff
+    style Offline fill:#2980b9,color:#fff
+    style Registry fill:#8e44ad,color:#fff
+    style Alerts fill:#e74c3c,color:#fff
+    style Trigger fill:#f5a623,color:#000

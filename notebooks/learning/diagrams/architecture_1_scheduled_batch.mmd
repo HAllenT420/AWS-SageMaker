@@ -1,0 +1,63 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4a90d9', 'primaryTextColor': '#fff', 'primaryBorderColor': '#2c5f8a', 'lineColor': '#333', 'secondaryColor': '#f5a623', 'tertiaryColor': '#7ed321'}}}%%
+
+graph TD
+    subgraph Data Sources
+        DB[(Application DB)]
+        API[External APIs]
+        Files[File Uploads]
+    end
+
+    subgraph ETL Layer
+        Glue[AWS Glue / Spark<br/>Nightly ETL Job]
+    end
+
+    subgraph Data Lake
+        S3Raw[S3: Raw Data]
+        S3Proc[S3: Processed Data]
+    end
+
+    subgraph Orchestration - Airflow
+        Schedule[Cron: Every Sunday 2AM]
+        Pull[Task: Pull Data]
+        Preprocess[Task: Preprocess]
+        Train[Task: Train Model]
+        Evaluate[Task: Evaluate]
+        Decision{AUC > 0.78?}
+        Deploy[Task: Deploy]
+        Alert[Task: Alert Team]
+    end
+
+    subgraph Model Serving
+        Endpoint[SageMaker Endpoint<br/>Real-time Predictions]
+        Batch[Batch Transform<br/>Nightly Scoring]
+    end
+
+    subgraph Monitoring
+        Monitor[SageMaker Model Monitor]
+        CW[CloudWatch Metrics]
+    end
+
+    DB --> Glue
+    API --> Glue
+    Files --> Glue
+    Glue --> S3Raw
+    S3Raw --> S3Proc
+
+    Schedule --> Pull
+    Pull --> Preprocess
+    Preprocess --> Train
+    Train --> Evaluate
+    Evaluate --> Decision
+    Decision -->|Yes| Deploy
+    Decision -->|No| Alert
+    Deploy --> Endpoint
+    Deploy --> Batch
+
+    Endpoint --> Monitor
+    Monitor --> CW
+    CW -->|Drift Alert| Schedule
+
+    style Schedule fill:#f5a623,color:#000
+    style Decision fill:#e74c3c,color:#fff
+    style Deploy fill:#7ed321,color:#000
+    style Monitor fill:#9b59b6,color:#fff

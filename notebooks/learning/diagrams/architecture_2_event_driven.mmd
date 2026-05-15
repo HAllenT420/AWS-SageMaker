@@ -1,0 +1,66 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4a90d9', 'primaryTextColor': '#fff'}}}%%
+
+graph TD
+    subgraph Live Traffic
+        Users[Users / Application]
+        Endpoint[SageMaker Endpoint<br/>Model v1]
+        Predictions[Predictions Logged]
+    end
+
+    subgraph Monitoring Layer
+        Monitor[Model Monitor<br/>Runs Every Hour]
+        PSI{PSI > 0.25?<br/>OR AUC < 0.78?}
+    end
+
+    subgraph Event System
+        CWAlarm[CloudWatch Alarm 🚨]
+        EB[EventBridge Rule]
+        Lambda[Lambda Function<br/>Trigger Retraining]
+        Slack[Slack Notification]
+    end
+
+    subgraph Retraining Pipeline
+        Pipeline[SageMaker Pipeline]
+        PullData[Pull Last 6 Months Data]
+        Process[Preprocess]
+        TrainNew[Train New Model]
+        Eval[Evaluate vs Current]
+        Better{New > Current?}
+        Register[Register in Model Registry]
+        Reject[Log: Retrain Failed]
+    end
+
+    subgraph Deployment
+        Approval[Human Approval]
+        Canary[Canary Deploy<br/>10% Traffic]
+        FullDeploy[Full Rollout<br/>100% Traffic]
+    end
+
+    Users -->|Request| Endpoint
+    Endpoint -->|Response + Log| Predictions
+    Predictions --> Monitor
+    Monitor --> PSI
+    PSI -->|No| Monitor
+    PSI -->|Yes| CWAlarm
+    CWAlarm --> EB
+    EB --> Lambda
+    Lambda --> Pipeline
+    Lambda --> Slack
+
+    Pipeline --> PullData
+    PullData --> Process
+    Process --> TrainNew
+    TrainNew --> Eval
+    Eval --> Better
+    Better -->|Yes| Register
+    Better -->|No| Reject
+    Register --> Approval
+    Approval --> Canary
+    Canary -->|24hr OK| FullDeploy
+    FullDeploy --> Endpoint
+
+    style CWAlarm fill:#e74c3c,color:#fff
+    style Lambda fill:#f5a623,color:#000
+    style Canary fill:#f39c12,color:#000
+    style FullDeploy fill:#27ae60,color:#fff
+    style PSI fill:#8e44ad,color:#fff

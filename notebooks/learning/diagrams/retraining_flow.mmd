@@ -1,0 +1,70 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4a90d9', 'primaryTextColor': '#fff'}}}%%
+
+graph TD
+    subgraph What Triggers Retraining?
+        T1[⏰ Schedule<br/>Weekly/Monthly Cron]
+        T2[📉 Drift Detected<br/>Model Monitor Alert]
+        T3[📊 New Data Volume<br/>10K+ New Records]
+        T4[👤 Manual Trigger<br/>Data Scientist]
+        T5[💻 Code Change<br/>CI/CD Pipeline]
+    end
+
+    subgraph Data Strategy - What Data to Use?
+        DS{Choose Strategy}
+        Full[Full Retrain<br/>ALL historical data<br/>Most common, safest]
+        Window[Sliding Window<br/>Last N months only<br/>When old data irrelevant]
+        Weighted[Weighted<br/>Recent data weighted more<br/>Gradual drift]
+        Incremental[Incremental<br/>Only new data updates model<br/>Real-time systems]
+    end
+
+    subgraph Retraining Pipeline
+        Pull[1. Pull Data from Data Lake]
+        Prep[2. Preprocess<br/>Same pipeline as original]
+        Train[3. Train New Model]
+        Eval[4. Evaluate on Test Set]
+        Compare{5. New Model Better<br/>Than Current?}
+        Register[6. Register in Model Registry]
+        Fail[6. Alert: Retrain Failed<br/>Investigate Root Cause]
+    end
+
+    subgraph Deployment Strategy
+        Approve[Human Approval<br/>or Auto-Approve]
+        Shadow[Shadow Deploy<br/>Both models run,<br/>compare silently]
+        Canary[Canary Deploy<br/>10% → 50% → 100%]
+        BlueGreen[Blue/Green<br/>Instant switch,<br/>instant rollback]
+    end
+
+    T1 --> DS
+    T2 --> DS
+    T3 --> DS
+    T4 --> DS
+    T5 --> DS
+
+    DS --> Full
+    DS --> Window
+    DS --> Weighted
+    DS --> Incremental
+
+    Full --> Pull
+    Window --> Pull
+    Weighted --> Pull
+    Incremental --> Pull
+
+    Pull --> Prep
+    Prep --> Train
+    Train --> Eval
+    Eval --> Compare
+    Compare -->|Yes ✓| Register
+    Compare -->|No ✗| Fail
+
+    Register --> Approve
+    Approve --> Shadow
+    Approve --> Canary
+    Approve --> BlueGreen
+
+    style T2 fill:#e74c3c,color:#fff
+    style Compare fill:#f5a623,color:#000
+    style Register fill:#27ae60,color:#fff
+    style Fail fill:#e74c3c,color:#fff
+    style Full fill:#3498db,color:#fff
+    style Window fill:#9b59b6,color:#fff
