@@ -1,0 +1,16 @@
+# Core dependencies (same as pyproject.toml)
+boto3>=1.28.0
+sagemaker>=2.200.0
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+
+# Dev
+pytest>=7.4.0
+ruff>=0.4.0
+
+# Notebook (optional)
+matplotlib>=3.7.0
+seaborn>=0.12.0
+jupyter>=1.0.0
+ipykernel>=6.25.0

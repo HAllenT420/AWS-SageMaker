@@ -1,216 +1,468 @@
-# Step-by-Step Guide: From Notebook to Production MLOps
+# Step-by-Step Guide: Build This Project From Scratch
 
-> Follow this guide top to bottom. Each step builds on the previous one.
-> No jumping ahead — the order matters.
+> Imagine you just opened your laptop and want to run this project.
+> Follow EVERY step below. Don't skip anything. Don't jump ahead.
+> Copy-paste the commands exactly as shown.
 
 ---
 
-## Phase 1: Setup (Do This First)
+## BEFORE YOU START: What Are We Building?
 
-### Step 1.1: Install uv and create environment
+We are building a system that **predicts if a customer will leave** (churn).
 
-```bash
-# Open terminal in VS Code (Ctrl+`)
-# Navigate to this folder
-cd example-project/part2-mlops
+Think of it like this:
+- A telecom company has 5000 customers
+- Some customers will cancel their subscription next month
+- We want to predict WHO will cancel, so we can offer them a discount to stay
 
-# Install dependencies
-uv sync
+The system will:
+1. Take customer data (how long they've been with us, how much they pay, etc.)
+2. Feed it to a machine learning model
+3. The model says: "This customer has 82% chance of leaving"
+4. The company can then act on it
+
+---
+
+## PART A: ONE-TIME SETUP (Do This Only Once)
+
+---
+
+### Step A1: Make Sure Python Is Installed
+
+Open your terminal in VS Code (press `Ctrl + backtick` — the key above Tab).
+
+Type this and press Enter:
+
+```
+python --version
 ```
 
-### Step 1.2: Configure AWS
+You should see something like `Python 3.11.5` or `Python 3.9.x`.
 
-```bash
+**If you get an error**: Go to https://www.python.org/downloads/ and install Python. Check the box "Add Python to PATH" during installation.
+
+---
+
+### Step A2: Install uv (Our Package Manager)
+
+In the same terminal, paste this ENTIRE line and press Enter:
+
+```
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Wait for it to finish. You should see "uv installed successfully" or similar.
+
+**To verify it worked**, type:
+
+```
+uv --version
+```
+
+You should see a version number like `uv 0.6.x`.
+
+---
+
+### Step A3: Install AWS CLI
+
+Paste this in terminal:
+
+```
+winget install Amazon.AWSCLI
+```
+
+If `winget` doesn't work, go to https://aws.amazon.com/cli/ and download the installer.
+
+**To verify**, close and reopen terminal, then type:
+
+```
+aws --version
+```
+
+You should see `aws-cli/2.x.x`.
+
+---
+
+### Step A4: Configure AWS Credentials
+
+You need an AWS account with access keys. If you don't have them:
+1. Go to https://aws.amazon.com and sign in
+2. Click your name (top right) → Security Credentials
+3. Create Access Key → Download the CSV
+
+Now in terminal, type:
+
+```
 aws configure
-# AWS Access Key ID: <your-key>
-# AWS Secret Access Key: <your-secret>
-# Default region: eu-west-1 (or your region)
-# Output format: json
 ```
 
-### Step 1.3: Set your SageMaker Role
+It will ask you 4 things. Type each answer and press Enter:
 
-Edit `part2-mlops/config/params.json` and replace `YOUR_ACCOUNT_ID` and `YOUR_SAGEMAKER_ROLE` with your actual values.
+```
+AWS Access Key ID [None]: PASTE_YOUR_ACCESS_KEY_HERE
+AWS Secret Access Key [None]: PASTE_YOUR_SECRET_KEY_HERE
+Default region name [None]: eu-west-1
+Default output format [None]: json
+```
 
-To find your role:
-1. Go to AWS Console → IAM → Roles
-2. Search for "SageMaker"
-3. Copy the ARN (looks like: `arn:aws:iam::123456789:role/SageMakerRole`)
+**To verify**, type:
+
+```
+aws sts get-caller-identity
+```
+
+You should see your account ID. If you get an error, your keys are wrong.
 
 ---
 
-## Phase 2: Experiment in Notebook (Part 1)
+### Step A5: Find Your SageMaker Role ARN
 
-### Step 2.1: Open the notebook
+You need a "role" that gives SageMaker permission to do things.
 
-Open `part1-notebook/churn_experiment.ipynb` in VS Code.
+**Option 1: If your company already has one:**
+Ask your team: "What's our SageMaker execution role ARN?"
+It looks like: `arn:aws:iam::123456789012:role/SageMakerRole`
 
-### Step 2.2: Select kernel
+**Option 2: Create one yourself:**
 
-Click the kernel selector (top-right) → select your Python environment.
+1. Go to AWS Console → IAM → Roles → Create Role
+2. Trusted entity: AWS Service → SageMaker
+3. Permissions: Search and check `AmazonSageMakerFullAccess`
+4. Also check `AmazonS3FullAccess`
+5. Role name: `SageMakerExecutionRole`
+6. Click Create
+7. Click on the role you just created
+8. Copy the "ARN" at the top (starts with `arn:aws:iam::`)
 
-### Step 2.3: Run cells sequentially
-
-The notebook does everything in one place:
-1. Generates synthetic customer data
-2. Explores the data (EDA)
-3. Preprocesses (encode, scale, split)
-4. Uploads to S3
-5. Trains XGBoost on SageMaker
-6. Evaluates the model
-7. Deploys to endpoint
-8. Makes predictions
-9. Cleans up
-
-**This is your "proof of concept" — validate the approach works before modularizing.**
+**Write this ARN down. You'll need it in the next step.**
 
 ---
 
-## Phase 3: Modular MLOps Code (Part 2)
+### Step A6: Set Up The Project
 
-### Why Modularize?
-
-| Notebook | Modular Code |
-|----------|-------------|
-| Hard to test | Each function testable |
-| Hard to reuse | Import and reuse anywhere |
-| No error handling | Proper try/except |
-| Manual execution | Automated pipeline |
-| Single developer | Team collaboration |
-
-### Step 3.1: Understand the module structure
-
-Each file in `src/` handles ONE step of the pipeline:
+In terminal, navigate to the project folder:
 
 ```
-data_ingestion.py      → "Where does data come from?"
-preprocessing.py       → "How do we clean it?"
-feature_engineering.py → "What features do we create?"
-training.py           → "How do we train?"
-evaluation.py         → "Is the model good enough?"
-registry.py           → "How do we version it?"
-deployment.py         → "How do we serve it?"
-monitoring.py         → "How do we watch it?"
+cd "C:\Users\Allen.Harry\OneDrive - Entain Group\Desktop\AWS SageMaker\example-project\part2-mlops"
 ```
 
-### Step 3.2: Run the pipeline
+Install all dependencies:
 
-```bash
-cd part2-mlops
-uv run python run_pipeline.py
+```
+uv sync --all-extras
 ```
 
-This executes all steps in order, with proper logging and error handling.
+Wait for it to finish (should take 30-60 seconds).
 
-### Step 3.3: Run tests
+---
 
-```bash
+### Step A7: Put Your Role ARN in the Config
+
+Open this file in VS Code:
+```
+example-project/part2-mlops/config/params.json
+```
+
+Find this line:
+```
+"role_arn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/YOUR_SAGEMAKER_ROLE",
+```
+
+Replace it with YOUR actual ARN from Step A5. For example:
+```
+"role_arn": "arn:aws:iam::123456789012:role/SageMakerExecutionRole",
+```
+
+**Save the file** (Ctrl+S).
+
+Also change the region if yours is different:
+```
+"region": "eu-west-1",
+```
+
+---
+
+### Step A8: Register Jupyter Kernel (For Notebooks)
+
+In terminal (still in the part2-mlops folder):
+
+```
+uv run python -m ipykernel install --user --name churn-project --display-name "Churn Project"
+```
+
+---
+
+## ✅ SETUP COMPLETE!
+
+You only do the above ONCE. Now let's actually run things.
+
+---
+---
+
+## PART B: RUN THE NOTEBOOK (Interactive Experiment)
+
+This is where you see everything work step by step, with outputs.
+
+---
+
+### Step B1: Open the Notebook
+
+In VS Code, open this file:
+```
+example-project/part1-notebook/churn_experiment.ipynb
+```
+
+---
+
+### Step B2: Select the Kernel
+
+Look at the top-right corner of the notebook. You'll see something like "Select Kernel" or "Python 3".
+
+Click it → Select "Churn Project" (the one we created in Step A8).
+
+If you don't see it, select "Python Environments" → pick any Python 3.9+ environment.
+
+---
+
+### Step B3: Update the Role ARN in the Notebook
+
+In the SECOND code cell, find this line:
+```python
+ROLE_ARN = 'arn:aws:iam::YOUR_ACCOUNT_ID:role/YOUR_SAGEMAKER_ROLE'
+```
+
+Replace it with your actual ARN (same one from Step A5).
+
+---
+
+### Step B4: Run Each Cell One by One
+
+Click on the first code cell, then press `Shift+Enter` to run it.
+
+Wait for it to finish (you'll see a number appear on the left like `[1]`).
+
+Then move to the next cell and press `Shift+Enter` again.
+
+**Keep doing this for every cell, in order, top to bottom.**
+
+Here's what each section does:
+
+| Section | What Happens | Time |
+|---------|-------------|------|
+| 1. Setup | Connects to AWS | 2 seconds |
+| 2. Data Generation | Creates fake customer data | 1 second |
+| 3. EDA | Shows charts about the data | 2 seconds |
+| 4. Preprocessing | Cleans and prepares data | 2 seconds |
+| 5. Upload to S3 | Sends data to AWS cloud storage | 10 seconds |
+| 6. Train on SageMaker | **Trains the model on AWS** | **5-8 minutes** |
+| 7. Evaluate | Tests how good the model is | 3-5 minutes |
+| 8. Deploy | Makes the model available for predictions | 5-8 minutes |
+| 9. Test Predictions | Asks the model to predict | 2 seconds |
+| 10. Cleanup | Deletes the endpoint (saves money) | 10 seconds |
+
+**⚠️ IMPORTANT**: Steps 6, 7, and 8 take several minutes because AWS is spinning up machines for you. Just wait. Don't click anything else.
+
+---
+
+### Step B5: Check Your Results
+
+After Step 7 (Evaluate), you should see something like:
+
+```
+AUC-ROC: 0.8534
+```
+
+If AUC is above 0.75, your model is good! ✅
+
+---
+
+### Step B6: DELETE THE ENDPOINT (Save Money!)
+
+After you're done testing, go to the LAST cell (Section 10) and **uncomment** the line:
+
+```python
+predictor.delete_endpoint()
+```
+
+(Remove the `#` at the start)
+
+Run that cell. This stops AWS from charging you.
+
+**If you forget this, you'll be charged ~$0.14/hour until you delete it.**
+
+---
+
+## ✅ NOTEBOOK EXPERIMENT COMPLETE!
+
+You just:
+- Trained a model on AWS SageMaker ✓
+- Evaluated it (AUC > 0.75) ✓
+- Deployed it as a live API ✓
+- Made real predictions ✓
+- Cleaned up ✓
+
+---
+---
+
+## PART C: RUN THE MODULAR CODE (Production Version)
+
+This does the SAME thing as the notebook, but as proper production code.
+
+---
+
+### Step C1: Open Terminal in the Right Folder
+
+In VS Code terminal:
+
+```
+cd "C:\Users\Allen.Harry\OneDrive - Entain Group\Desktop\AWS SageMaker\example-project\part2-mlops"
+```
+
+---
+
+### Step C2: Run Tests First (Make Sure Code Works)
+
+```
 uv run pytest tests/ -v
 ```
 
----
-
-## Phase 4: Understanding Each Module
-
-### Module 1: `data_ingestion.py`
-
-**What it does**: Connects to data sources, pulls raw data, saves to S3.
-
-**In production**: This would connect to your actual database, API, or data lake.
-
-**Key concept**: Never train directly from the source DB. Always:
-1. Extract → 2. Save to data lake (S3) → 3. Train from data lake
-
-### Module 2: `preprocessing.py`
-
-**What it does**: Cleans data, handles missing values, encodes categoricals.
-
-**Key concept**: This runs as a SageMaker Processing Job (not on your laptop).
-The script in `scripts/preprocess.py` is what SageMaker actually executes.
-
-### Module 3: `feature_engineering.py`
-
-**What it does**: Creates new features from raw data.
-
-**Key concept**: Feature engineering is where most model improvement comes from.
-Good features > fancy algorithms.
-
-### Module 4: `training.py`
-
-**What it does**: Configures and launches a SageMaker Training Job.
-
-**Key concept**: Your laptop just SUBMITS the job. The actual training runs on
-AWS infrastructure (ml.m5.xlarge, etc.). You pay only while it runs.
-
-### Module 5: `evaluation.py`
-
-**What it does**: Evaluates the trained model, produces metrics, checks quality gates.
-
-**Key concept**: If metrics don't pass the threshold, the pipeline STOPS.
-No bad model ever reaches production.
-
-### Module 6: `registry.py`
-
-**What it does**: Registers the model in SageMaker Model Registry with version number.
-
-**Key concept**: Every model is versioned. You can always roll back to a previous version.
-
-### Module 7: `deployment.py`
-
-**What it does**: Deploys the approved model to a SageMaker Endpoint.
-
-**Key concept**: Supports multiple strategies:
-- Direct replacement (simple)
-- Canary (10% traffic first)
-- Blue/Green (instant switch + rollback)
-
-### Module 8: `monitoring.py`
-
-**What it does**: Sets up Model Monitor to watch for drift.
-
-**Key concept**: Models degrade over time. Monitoring catches this early
-so you can retrain before users notice.
+You should see all tests PASS (green). If any fail, something is wrong with setup.
 
 ---
 
-## Phase 5: The Full Pipeline (Automated)
-
-### How `pipeline/pipeline.py` ties it all together
+### Step C3: Run the Full Pipeline (Without Deployment)
 
 ```
-SageMaker Pipeline Definition:
-    Step 1: ProcessingStep (runs preprocessing.py on SageMaker)
-    Step 2: TrainingStep (runs training on SageMaker)
-    Step 3: ProcessingStep (runs evaluation on SageMaker)
-    Step 4: ConditionStep (if AUC > 0.75 → register, else → stop)
-    Step 5: RegisterModel (add to Model Registry)
+uv run python run_pipeline.py
 ```
 
-### Running the pipeline
+This will:
+1. Generate data and upload to S3
+2. Run preprocessing on SageMaker
+3. Train the model on SageMaker
+4. Evaluate the model
+5. Check quality gates (AUC > 0.75?)
+6. Register the model in Model Registry
 
-```bash
-# This creates/updates the pipeline in AWS and starts it
+**This takes about 20-30 minutes total.** You'll see logs in the terminal showing progress.
+
+---
+
+### Step C4: Run With Deployment (Optional)
+
+If you also want to deploy an endpoint:
+
+```
+uv run python run_pipeline.py --deploy
+```
+
+**Remember to delete the endpoint when done** to avoid charges.
+
+---
+
+### Step C5: Run the SageMaker Pipeline (Fully Automated)
+
+This creates a pipeline in AWS that can run on schedule:
+
+```
 uv run python pipeline/pipeline.py
 ```
 
-### Monitoring the pipeline
-
-After starting, go to:
-- AWS Console → SageMaker → Pipelines → churn-prediction-pipeline
-- You'll see a visual DAG of your pipeline executing
-
----
-
-## Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| "No module named sagemaker" | Run `uv sync` in part2-mlops/ |
-| "Access Denied" | Check your IAM role has SageMaker permissions |
-| "ResourceLimitExceeded" | Request a quota increase in AWS Console |
-| "Could not assume role" | Verify the role ARN in params.json |
-| Training job fails | Check CloudWatch Logs for the training job |
+After this runs, go to:
+- AWS Console → SageMaker → Pipelines
+- You'll see your pipeline with a visual diagram
+- You can click "Start" to run it anytime
 
 ---
 
-*Follow this guide top to bottom and you'll have a working production ML system.*
+## ✅ PRODUCTION CODE COMPLETE!
+
+---
+---
+
+## PART D: UNDERSTANDING WHAT EACH FILE DOES
+
+If someone asks "what does this file do?", here's the answer:
+
+```
+example-project/
+│
+├── part1-notebook/
+│   └── churn_experiment.ipynb    ← "The playground" — try things here
+│
+├── part2-mlops/
+│   ├── config/
+│   │   ├── params.json           ← "The settings" — change region, role, hyperparameters
+│   │   └── config.py             ← "The settings reader" — loads params.json
+│   │
+│   ├── src/                      ← "The brain" — each file does ONE job
+│   │   ├── data_ingestion.py     ← Gets data from source (DB, API, or generates it)
+│   │   ├── preprocessing.py      ← Tells SageMaker to clean the data
+│   │   ├── training.py           ← Tells SageMaker to train the model
+│   │   ├── evaluation.py         ← Checks if the model is good enough
+│   │   ├── registry.py           ← Saves the model with a version number
+│   │   ├── deployment.py         ← Makes the model available as an API
+│   │   └── monitoring.py         ← Watches the model for problems
+│   │
+│   ├── scripts/                  ← "The workers" — these run ON SageMaker (not your laptop)
+│   │   ├── preprocess.py         ← Actual preprocessing code (runs on AWS machine)
+│   │   └── evaluate.py           ← Actual evaluation code (runs on AWS machine)
+│   │
+│   ├── pipeline/
+│   │   └── pipeline.py           ← "The assembly line" — automates everything
+│   │
+│   ├── tests/                    ← "The safety net" — makes sure code works
+│   │   └── test_preprocessing.py
+│   │
+│   ├── run_pipeline.py           ← "The big red button" — runs everything in order
+│   ├── pyproject.toml            ← "The shopping list" — what packages to install (for uv)
+│   └── requirements.txt          ← Same shopping list (for pip)
+```
+
+---
+
+## COMMON PROBLEMS & FIXES
+
+| What You See | What's Wrong | How to Fix |
+|---|---|---|
+| `uv: command not found` | uv not installed | Redo Step A2, then close and reopen terminal |
+| `aws: command not found` | AWS CLI not installed | Redo Step A3, then close and reopen terminal |
+| `No module named 'sagemaker'` | Dependencies not installed | Run `uv sync --all-extras` in part2-mlops folder |
+| `AccessDeniedException` | Wrong AWS credentials | Run `aws configure` again with correct keys |
+| `Could not assume role` | Wrong role ARN in params.json | Check Step A5, make sure ARN is correct |
+| `ResourceLimitExceeded` | AWS account limit | Go to AWS Console → Service Quotas → request increase |
+| Training job stuck | Normal — it takes time | Wait 5-8 minutes. Check CloudWatch Logs if >15 min |
+| `Endpoint already exists` | You ran deploy twice | Delete old endpoint first, or change the name in params.json |
+| Charged money unexpectedly | Forgot to delete endpoint | Go to AWS Console → SageMaker → Endpoints → Delete |
+
+---
+
+## COST GUIDE (So You Don't Get Surprised)
+
+| What | Cost | When You Pay |
+|------|------|-------------|
+| S3 storage | ~$0.02/month | Always (tiny amount) |
+| Processing job | ~$0.05 per run | Only while running (5-10 min) |
+| Training job | ~$0.10 per run | Only while running (5-10 min) |
+| Endpoint (ml.m5.large) | ~$0.14/hour | **Every hour it's running!** |
+| Batch Transform | ~$0.05 per run | Only while running |
+
+**The expensive thing is the ENDPOINT.** Always delete it when done testing.
+
+Total cost to run this project once: **~$1-2** (if you delete the endpoint after testing).
+
+---
+
+## WHAT TO DO NEXT
+
+After you've run everything successfully:
+
+1. **Change the data**: Edit `src/data_ingestion.py` to use real data instead of synthetic
+2. **Tune the model**: Change hyperparameters in `config/params.json`
+3. **Add features**: Edit `scripts/preprocess.py` to create better features
+4. **Schedule retraining**: Set up EventBridge to run the pipeline weekly
+5. **Add monitoring**: Call `setup_model_monitor()` after deployment
+
+---
+
+*That's it. You've built a production ML system. 🎉*
